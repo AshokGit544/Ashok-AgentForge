@@ -1,0 +1,4 @@
+task,task_type,difficulty,output_type,review_status,trace_steps
+Research and summarize the best way to build a realistic multi-agent AI project,research_execution,high,strategy_and_implementation_plan,approved,4
+Build a simple implementation plan for a task management app,execution,medium,implementation_plan,approved,4
+Summarize how a planner researcher writer workflow works,research,medium,structured_summary,approved,4
