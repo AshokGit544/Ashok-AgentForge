@@ -1,8 +1,15 @@
+import sys
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 import streamlit as st
 import pandas as pd
 import altair as alt
 import json
-from pathlib import Path
+
 from app.workflows.graph import build_graph
 from app.memory.run_memory import save_run, load_recent_memory
 
@@ -133,7 +140,6 @@ if "latest_result" not in st.session_state:
 if "latest_error" not in st.session_state:
     st.session_state.latest_error = None
 
-
 # -------------------------
 # Workflow Input
 # -------------------------
@@ -177,7 +183,9 @@ if error_message:
 memory = get_recent_memory_data()
 memory_df = pd.DataFrame(memory) if memory else pd.DataFrame()
 
+# -------------------------
 # Sidebar
+# -------------------------
 st.sidebar.header("Run Metrics")
 
 total_runs = len(memory)
@@ -222,7 +230,9 @@ if not filtered_df.empty:
             filtered_df["task"].fillna("").str.contains(search_text, case=False, na=False)
         ]
 
+# -------------------------
 # Current Run
+# -------------------------
 st.markdown("---")
 st.markdown("## Current Run")
 
@@ -239,7 +249,9 @@ if result:
 else:
     st.info("Run a workflow to see the current result here.")
 
+# -------------------------
 # Run History
+# -------------------------
 st.markdown("---")
 st.markdown("## Run History")
 
@@ -306,7 +318,9 @@ if not filtered_df.empty:
 else:
     st.info("No saved runs found for the selected filters.")
 
+# -------------------------
 # Charts
+# -------------------------
 st.markdown("---")
 st.markdown("## Charts")
 
@@ -333,8 +347,9 @@ if not filtered_df.empty:
 else:
     st.info("Run some workflows to generate charts.")
 
-
+# -------------------------
 # Evaluation Results
+# -------------------------
 st.markdown("---")
 st.markdown("## Evaluation Results")
 
