@@ -14,7 +14,7 @@ def load_memory():
         return json.load(f)
 
 
-def load_recent_memory(limit=20):
+def load_recent_memory(limit=15):
     memory = load_memory()
     return memory[-limit:]
 

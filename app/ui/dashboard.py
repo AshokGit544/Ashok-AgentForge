@@ -20,7 +20,7 @@ def get_app():
 
 @st.cache_data
 def get_recent_memory_data():
-    return load_recent_memory(limit=20)
+    return load_recent_memory(limit=15)
 
 
 @st.cache_data
@@ -77,20 +77,11 @@ def build_fixed_bar_chart(df, category_col, title):
         .configure_axis(grid=True)
     )
 
-    chart = chart.configure(
-        autosize=alt.AutoSizeParams(
-            type="none",
-            resize=False,
-            contains="content"
-        )
-    )
-
     return chart
 
 
 def render_run_details(run, section_title):
     st.markdown(f"### {section_title}")
-
     st.write(f"**Run ID:** {run.get('run_id', 'N/A')}")
     st.write(f"**Timestamp:** {run.get('timestamp', 'N/A')}")
     st.write(f"**Task:** {run.get('task', 'N/A')}")
@@ -98,14 +89,14 @@ def render_run_details(run, section_title):
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### Run Core Details")
+        st.markdown("#### Task Analysis")
         st.write(f"**Task Type:** {run.get('task_type', 'N/A')}")
         st.write(f"**Difficulty:** {run.get('difficulty', 'N/A')}")
         st.write(f"**Output Type:** {run.get('output_type', 'N/A')}")
         st.write(f"**Objective:** {run.get('objective', 'N/A')}")
 
     with col2:
-        st.markdown("#### Run Outcome Details")
+        st.markdown("#### Review Result")
         st.write(f"**Review Status:** {run.get('review_status', 'N/A')}")
         st.write(f"**Success Criteria:** {run.get('success_criteria', 'N/A')}")
 
@@ -141,6 +132,7 @@ if "latest_result" not in st.session_state:
 
 if "latest_error" not in st.session_state:
     st.session_state.latest_error = None
+
 
 # -------------------------
 # Workflow Input
@@ -219,7 +211,7 @@ pending_review_runs = sum(1 for run in memory if run.get("review_status") == "pe
 metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
 
 with metric_col1:
-    st.metric("Total Runs", total_runs)
+    st.metric("Visible Runs", total_runs)
 with metric_col2:
     st.metric("Approved", approved_runs)
 with metric_col3:
@@ -230,7 +222,7 @@ with metric_col5:
     st.metric("Pending Review", pending_review_runs)
 
 # -------------------------
-# Audit Filters
+# Filters
 # -------------------------
 st.markdown("---")
 st.markdown("## Audit Filters")
@@ -353,12 +345,7 @@ if not filtered_df.empty:
             "Review Status Distribution"
         )
         if review_chart is not None:
-            st.altair_chart(
-                review_chart,
-                width=440,
-                height=340,
-                theme=None
-            )
+            st.altair_chart(review_chart, width=440, height=340, theme=None)
 
     with chart_col2:
         task_chart = build_fixed_bar_chart(
@@ -367,12 +354,7 @@ if not filtered_df.empty:
             "Task Type Distribution"
         )
         if task_chart is not None:
-            st.altair_chart(
-                task_chart,
-                width=440,
-                height=340,
-                theme=None
-            )
+            st.altair_chart(task_chart, width=440, height=340, theme=None)
 else:
     st.info("Run some workflows to generate charts.")
 
@@ -382,17 +364,20 @@ else:
 st.markdown("---")
 st.markdown("## Evaluation Results")
 
-eval_df = get_eval_data()
+show_eval = st.checkbox("Show Evaluation Results", value=False)
 
-if eval_df is not None:
-    st.dataframe(eval_df, width="stretch")
+if show_eval:
+    eval_df = get_eval_data()
 
-    csv_data = eval_df.to_csv(index=False).encode("utf-8")
-    st.download_button(
-        label="Download Evaluation Results",
-        data=csv_data,
-        file_name="eval_results.csv",
-        mime="text/csv"
-    )
-else:
-    st.info("No evaluation file found yet. Run: python -m app.evaluation.run_eval")
+    if eval_df is not None:
+        st.dataframe(eval_df, width="stretch")
+
+        csv_data = eval_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download Evaluation Results",
+            data=csv_data,
+            file_name="eval_results.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("No evaluation file found yet. Run: python -m app.evaluation.run_eval")
