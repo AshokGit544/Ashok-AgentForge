@@ -6,7 +6,11 @@ from pathlib import Path
 from app.workflows.graph import build_graph
 from app.memory.run_memory import save_run, load_memory
 
-st.set_page_config(page_title="Ashok-AgentForge", layout="wide")
+st.set_page_config(
+    page_title="Ashok-AgentForge",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 st.title("Ashok-AgentForge")
 st.subheader("Multi-Agent Research, Execution and Review Studio")
