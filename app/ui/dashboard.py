@@ -1,8 +1,13 @@
+import sys
+from pathlib import Path
+
+# Add project root to Python path for Streamlit Cloud
+sys.path.append(str(Path(__file__).resolve().parents[2]))
+
 import streamlit as st
 import pandas as pd
 import altair as alt
 import json
-from pathlib import Path
 from app.workflows.graph import build_graph
 from app.memory.run_memory import save_run, load_memory
 
