@@ -177,9 +177,52 @@ if error_message:
 memory = get_recent_memory_data()
 memory_df = pd.DataFrame(memory) if memory else pd.DataFrame()
 
-# -------------------------
+# Sidebar
+st.sidebar.header("Run Metrics")
+
+total_runs = len(memory)
+approved_runs = sum(1 for run in memory if run.get("review_status") == "approved")
+needs_improvement_runs = sum(1 for run in memory if run.get("review_status") == "needs_improvement")
+rejected_runs = sum(1 for run in memory if run.get("review_status") == "rejected")
+pending_review_runs = sum(1 for run in memory if run.get("review_status") == "pending_review")
+
+st.sidebar.write("**Visible Runs:**", total_runs)
+st.sidebar.write("**Approved Runs:**", approved_runs)
+st.sidebar.write("**Needs Improvement Runs:**", needs_improvement_runs)
+st.sidebar.write("**Rejected Runs:**", rejected_runs)
+st.sidebar.write("**Pending Review Runs:**", pending_review_runs)
+
+st.sidebar.markdown("---")
+st.sidebar.header("Filters")
+
+review_options = ["All"]
+task_type_options = ["All"]
+
+if not memory_df.empty:
+    if "review_status" in memory_df.columns:
+        review_options += sorted(memory_df["review_status"].dropna().unique().tolist())
+    if "task_type" in memory_df.columns:
+        task_type_options += sorted(memory_df["task_type"].dropna().unique().tolist())
+
+selected_review_status = st.sidebar.selectbox("Filter by Review Status", review_options)
+selected_task_type = st.sidebar.selectbox("Filter by Task Type", task_type_options)
+search_text = st.sidebar.text_input("Search Task Text")
+
+filtered_df = memory_df.copy()
+
+if not filtered_df.empty:
+    if selected_review_status != "All":
+        filtered_df = filtered_df[filtered_df["review_status"] == selected_review_status]
+
+    if selected_task_type != "All":
+        filtered_df = filtered_df[filtered_df["task_type"] == selected_task_type]
+
+    if search_text.strip():
+        filtered_df = filtered_df[
+            filtered_df["task"].fillna("").str.contains(search_text, case=False, na=False)
+        ]
+
 # Current Run
-# -------------------------
 st.markdown("---")
 st.markdown("## Current Run")
 
@@ -196,73 +239,7 @@ if result:
 else:
     st.info("Run a workflow to see the current result here.")
 
-# -------------------------
-# Run Metrics
-# -------------------------
-st.markdown("---")
-st.markdown("## Run Metrics")
-
-total_runs = len(memory)
-approved_runs = sum(1 for run in memory if run.get("review_status") == "approved")
-needs_improvement_runs = sum(1 for run in memory if run.get("review_status") == "needs_improvement")
-rejected_runs = sum(1 for run in memory if run.get("review_status") == "rejected")
-pending_review_runs = sum(1 for run in memory if run.get("review_status") == "pending_review")
-
-metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
-
-with metric_col1:
-    st.metric("Visible Runs", total_runs)
-with metric_col2:
-    st.metric("Approved", approved_runs)
-with metric_col3:
-    st.metric("Needs Improvement", needs_improvement_runs)
-with metric_col4:
-    st.metric("Rejected", rejected_runs)
-with metric_col5:
-    st.metric("Pending Review", pending_review_runs)
-
-# -------------------------
-# Filters
-# -------------------------
-st.markdown("---")
-st.markdown("## Audit Filters")
-
-review_options = ["All"]
-task_type_options = ["All"]
-
-if not memory_df.empty:
-    if "review_status" in memory_df.columns:
-        review_options += sorted(memory_df["review_status"].dropna().unique().tolist())
-    if "task_type" in memory_df.columns:
-        task_type_options += sorted(memory_df["task_type"].dropna().unique().tolist())
-
-filter_col1, filter_col2 = st.columns(2)
-
-with filter_col1:
-    selected_review_status = st.selectbox("Filter by Review Status", review_options)
-
-with filter_col2:
-    selected_task_type = st.selectbox("Filter by Task Type", task_type_options)
-
-search_text = st.text_input("Search Task Text")
-
-filtered_df = memory_df.copy()
-
-if not filtered_df.empty:
-    if selected_review_status != "All":
-        filtered_df = filtered_df[filtered_df["review_status"] == selected_review_status]
-
-    if selected_task_type != "All":
-        filtered_df = filtered_df[filtered_df["task_type"] == selected_task_type]
-
-    if search_text.strip():
-        filtered_df = filtered_df[
-            filtered_df["task"].fillna("").str.contains(search_text, case=False, na=False)
-        ]
-
-# -------------------------
 # Run History
-# -------------------------
 st.markdown("---")
 st.markdown("## Run History")
 
@@ -329,9 +306,7 @@ if not filtered_df.empty:
 else:
     st.info("No saved runs found for the selected filters.")
 
-# -------------------------
 # Charts
-# -------------------------
 st.markdown("---")
 st.markdown("## Charts")
 
@@ -358,9 +333,8 @@ if not filtered_df.empty:
 else:
     st.info("Run some workflows to generate charts.")
 
-# -------------------------
+
 # Evaluation Results
-# -------------------------
 st.markdown("---")
 st.markdown("## Evaluation Results")
 
