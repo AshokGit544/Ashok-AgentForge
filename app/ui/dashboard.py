@@ -36,12 +36,6 @@ def clear_cached_data():
     get_eval_data.clear()
 
 
-st.title("Ashok-AgentForge")
-st.subheader("Multi-Agent Research, Execution and Review Studio")
-
-app = get_app()
-
-
 def build_fixed_bar_chart(df, category_col, title):
     if df.empty or category_col not in df.columns:
         return None
@@ -96,23 +90,24 @@ def build_fixed_bar_chart(df, category_col, title):
 
 def render_run_details(run, section_title):
     st.markdown(f"### {section_title}")
-    st.write("**Run ID:**", run.get("run_id", "N/A"))
-    st.write("**Timestamp:**", run.get("timestamp", "N/A"))
+
+    st.write(f"**Run ID:** {run.get('run_id', 'N/A')}")
+    st.write(f"**Timestamp:** {run.get('timestamp', 'N/A')}")
+    st.write(f"**Task:** {run.get('task', 'N/A')}")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### Task Analysis")
-        st.write("**Task:**", run.get("task"))
-        st.write("**Task Type:**", run.get("task_type"))
-        st.write("**Difficulty:**", run.get("difficulty"))
-        st.write("**Output Type:**", run.get("output_type"))
-        st.write("**Objective:**", run.get("objective"))
+        st.markdown("#### Run Core Details")
+        st.write(f"**Task Type:** {run.get('task_type', 'N/A')}")
+        st.write(f"**Difficulty:** {run.get('difficulty', 'N/A')}")
+        st.write(f"**Output Type:** {run.get('output_type', 'N/A')}")
+        st.write(f"**Objective:** {run.get('objective', 'N/A')}")
 
     with col2:
-        st.markdown("#### Review Result")
-        st.write("**Review Status:**", run.get("review_status"))
-        st.write("**Success Criteria:**", run.get("success_criteria"))
+        st.markdown("#### Run Outcome Details")
+        st.write(f"**Review Status:** {run.get('review_status', 'N/A')}")
+        st.write(f"**Success Criteria:** {run.get('success_criteria', 'N/A')}")
 
     st.markdown("#### Subtasks")
     for item in run.get("subtasks", []):
@@ -136,12 +131,21 @@ def render_run_details(run, section_title):
         st.write("-", step)
 
 
+st.title("Ashok-AgentForge")
+st.subheader("Multi-Agent Research, Execution and Review Studio")
+
+app = get_app()
+
 if "latest_result" not in st.session_state:
     st.session_state.latest_result = None
 
 if "latest_error" not in st.session_state:
     st.session_state.latest_error = None
 
+# -------------------------
+# Workflow Input
+# -------------------------
+st.markdown("## Workflow Input")
 
 task = st.text_area(
     "Enter your task",
@@ -181,20 +185,55 @@ if error_message:
 memory = get_recent_memory_data()
 memory_df = pd.DataFrame(memory) if memory else pd.DataFrame()
 
-st.sidebar.header("Run Metrics")
+# -------------------------
+# Current Run
+# -------------------------
+st.markdown("---")
+st.markdown("## Current Run")
+
+if result:
+    render_run_details(result, "Current Run Details")
+
+    result_json = json.dumps(result, indent=2)
+    st.download_button(
+        label="Download Current Run",
+        data=result_json,
+        file_name="latest_run.json",
+        mime="application/json"
+    )
+else:
+    st.info("Run a workflow to see the current result here.")
+
+# -------------------------
+# Run Metrics
+# -------------------------
+st.markdown("---")
+st.markdown("## Run Metrics")
 
 total_runs = len(memory)
 approved_runs = sum(1 for run in memory if run.get("review_status") == "approved")
 needs_improvement_runs = sum(1 for run in memory if run.get("review_status") == "needs_improvement")
-last_task_type = memory[-1].get("task_type") if memory else "N/A"
+rejected_runs = sum(1 for run in memory if run.get("review_status") == "rejected")
+pending_review_runs = sum(1 for run in memory if run.get("review_status") == "pending_review")
 
-st.sidebar.write("**Visible Runs:**", total_runs)
-st.sidebar.write("**Approved Runs:**", approved_runs)
-st.sidebar.write("**Needs Improvement Runs:**", needs_improvement_runs)
-st.sidebar.write("**Last Task Type:**", last_task_type)
+metric_col1, metric_col2, metric_col3, metric_col4, metric_col5 = st.columns(5)
 
-st.sidebar.markdown("---")
-st.sidebar.header("Filters")
+with metric_col1:
+    st.metric("Total Runs", total_runs)
+with metric_col2:
+    st.metric("Approved", approved_runs)
+with metric_col3:
+    st.metric("Needs Improvement", needs_improvement_runs)
+with metric_col4:
+    st.metric("Rejected", rejected_runs)
+with metric_col5:
+    st.metric("Pending Review", pending_review_runs)
+
+# -------------------------
+# Audit Filters
+# -------------------------
+st.markdown("---")
+st.markdown("## Audit Filters")
 
 review_options = ["All"]
 task_type_options = ["All"]
@@ -205,9 +244,15 @@ if not memory_df.empty:
     if "task_type" in memory_df.columns:
         task_type_options += sorted(memory_df["task_type"].dropna().unique().tolist())
 
-selected_review_status = st.sidebar.selectbox("Review Status", review_options)
-selected_task_type = st.sidebar.selectbox("Task Type", task_type_options)
-search_text = st.sidebar.text_input("Search Task Text")
+filter_col1, filter_col2 = st.columns(2)
+
+with filter_col1:
+    selected_review_status = st.selectbox("Filter by Review Status", review_options)
+
+with filter_col2:
+    selected_task_type = st.selectbox("Filter by Task Type", task_type_options)
+
+search_text = st.text_input("Search Task Text")
 
 filtered_df = memory_df.copy()
 
@@ -223,130 +268,131 @@ if not filtered_df.empty:
             filtered_df["task"].fillna("").str.contains(search_text, case=False, na=False)
         ]
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["Current Run", "Run History", "Charts", "Evaluation"],
-    key="main_tabs"
-)
+# -------------------------
+# Run History
+# -------------------------
+st.markdown("---")
+st.markdown("## Run History")
 
-# Current Run
-if tab1:
-    with tab1:
-        if result:
-            render_run_details(result, "Current Run")
+if not filtered_df.empty:
+    history_csv = filtered_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Filtered Run History",
+        data=history_csv,
+        file_name="filtered_run_history.csv",
+        mime="text/csv"
+    )
 
-            result_json = json.dumps(result, indent=2)
+    st.markdown("### Audit Table")
+    display_columns = [
+        col for col in [
+            "run_id",
+            "timestamp",
+            "task",
+            "task_type",
+            "difficulty",
+            "output_type",
+            "review_status"
+        ] if col in filtered_df.columns
+    ]
+    st.dataframe(filtered_df[display_columns], width="stretch")
+
+    filtered_runs = list(reversed(filtered_df.to_dict(orient="records")))
+    run_options = []
+
+    for run in filtered_runs:
+        label = f"{run.get('timestamp', 'No time')} | {run.get('run_id', 'N/A')} | {run.get('task', 'No task')}"
+        run_options.append(label)
+
+    selected_run_label = st.selectbox("Select Run ID / Task", run_options)
+
+    selected_run = None
+    for run in filtered_runs:
+        label = f"{run.get('timestamp', 'No time')} | {run.get('run_id', 'N/A')} | {run.get('task', 'No task')}"
+        if label == selected_run_label:
+            selected_run = run
+            break
+
+    if selected_run:
+        st.markdown("### Run Detail Viewer")
+        render_run_details(selected_run, "Selected Run Details")
+
+        selected_run_json = json.dumps(selected_run, indent=2)
+
+        action_col1, action_col2 = st.columns(2)
+
+        with action_col1:
+            if st.button("Load Selected Run as Current Run"):
+                st.session_state.latest_result = selected_run
+                st.session_state.latest_error = None
+                st.success("Selected saved run loaded into Current Run section.")
+
+        with action_col2:
             st.download_button(
-                label="Download Current Run",
-                data=result_json,
-                file_name="latest_run.json",
+                label="Download Selected Run",
+                data=selected_run_json,
+                file_name=f"selected_run_{selected_run.get('run_id', 'unknown')}.json",
                 mime="application/json"
             )
-        else:
-            st.info("Run a workflow to see the current result here.")
+else:
+    st.info("No saved runs found for the selected filters.")
 
-# Run History
-if tab2:
-    with tab2:
-        st.markdown("## Run History")
-
-        if not filtered_df.empty:
-            history_csv = filtered_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Download Filtered Run History",
-                data=history_csv,
-                file_name="filtered_run_history.csv",
-                mime="text/csv"
-            )
-
-            filtered_runs = list(reversed(filtered_df.to_dict(orient="records")))
-            run_options = []
-
-            for run in filtered_runs:
-                label = f"{run.get('timestamp', 'No time')} | {run.get('run_id', 'N/A')} | {run.get('task', 'No task')}"
-                run_options.append(label)
-
-            selected_run_label = st.selectbox("Select a saved run to inspect", run_options)
-
-            selected_run = None
-            for run in filtered_runs:
-                label = f"{run.get('timestamp', 'No time')} | {run.get('run_id', 'N/A')} | {run.get('task', 'No task')}"
-                if label == selected_run_label:
-                    selected_run = run
-                    break
-
-            if selected_run:
-                render_run_details(selected_run, "Selected Saved Run")
-
-            latest_runs = filtered_runs[:5]
-            st.markdown("### Latest Filtered Runs")
-
-            for idx, run in enumerate(latest_runs, start=1):
-                run_title = f"Run {idx}: {run.get('task', 'No task')}"
-                run_time = run.get("timestamp", "No time")
-                with st.expander(f"{run_title} | {run_time}"):
-                    st.write("**Run ID:**", run.get("run_id", "N/A"))
-                    st.write("**Timestamp:**", run.get("timestamp", "N/A"))
-                    st.write("**Task Type:**", run.get("task_type"))
-                    st.write("**Difficulty:**", run.get("difficulty"))
-                    st.write("**Output Type:**", run.get("output_type"))
-                    st.write("**Review Status:**", run.get("review_status"))
-        else:
-            st.info("No saved runs found for the selected filters.")
-
+# -------------------------
 # Charts
-if tab3:
-    with tab3:
-        st.markdown("## Workflow Charts")
+# -------------------------
+st.markdown("---")
+st.markdown("## Charts")
 
-        if not filtered_df.empty:
-            chart_col1, chart_col2 = st.columns(2)
+if not filtered_df.empty:
+    chart_col1, chart_col2 = st.columns(2)
 
-            with chart_col1:
-                review_chart = build_fixed_bar_chart(
-                    filtered_df,
-                    "review_status",
-                    "Review Status Distribution"
-                )
-                if review_chart is not None:
-                    st.altair_chart(
-                        review_chart,
-                        width=440,
-                        height=340,
-                        theme=None
-                    )
-
-            with chart_col2:
-                task_chart = build_fixed_bar_chart(
-                    filtered_df,
-                    "task_type",
-                    "Task Type Distribution"
-                )
-                if task_chart is not None:
-                    st.altair_chart(
-                        task_chart,
-                        width=440,
-                        height=340,
-                        theme=None
-                    )
-        else:
-            st.info("Run some workflows to generate charts.")
-
-# Evaluation
-if tab4:
-    with tab4:
-        st.markdown("## Evaluation Results")
-
-        eval_df = get_eval_data()
-
-        if eval_df is not None:
-            st.dataframe(eval_df, width="stretch")
-
-            csv_data = eval_df.to_csv(index=False).encode("utf-8")
-            st.download_button(
-                label="Download Evaluation Results",
-                data=csv_data,
-                file_name="eval_results.csv",
-                mime="text/csv"
+    with chart_col1:
+        review_chart = build_fixed_bar_chart(
+            filtered_df,
+            "review_status",
+            "Review Status Distribution"
+        )
+        if review_chart is not None:
+            st.altair_chart(
+                review_chart,
+                width=440,
+                height=340,
+                theme=None
             )
-        else:
-            st.info("No evaluation file found yet. Run: python -m app.evaluation.run_eval")
+
+    with chart_col2:
+        task_chart = build_fixed_bar_chart(
+            filtered_df,
+            "task_type",
+            "Task Type Distribution"
+        )
+        if task_chart is not None:
+            st.altair_chart(
+                task_chart,
+                width=440,
+                height=340,
+                theme=None
+            )
+else:
+    st.info("Run some workflows to generate charts.")
+
+# -------------------------
+# Evaluation Results
+# -------------------------
+st.markdown("---")
+st.markdown("## Evaluation Results")
+
+eval_df = get_eval_data()
+
+if eval_df is not None:
+    st.dataframe(eval_df, width="stretch")
+
+    csv_data = eval_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="Download Evaluation Results",
+        data=csv_data,
+        file_name="eval_results.csv",
+        mime="text/csv"
+    )
+else:
+    st.info("No evaluation file found yet. Run: python -m app.evaluation.run_eval")
