@@ -1,13 +1,8 @@
-import sys
-from pathlib import Path
-
-# Add project root to Python path for Streamlit Cloud
-sys.path.append(str(Path(__file__).resolve().parents[2]))
-
 import streamlit as st
 import pandas as pd
 import altair as alt
 import json
+from pathlib import Path
 from app.workflows.graph import build_graph
 from app.memory.run_memory import save_run, load_memory
 
@@ -17,10 +12,34 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+@st.cache_resource
+def get_app():
+    return build_graph()
+
+
+@st.cache_data
+def get_memory_data():
+    return load_memory()
+
+
+@st.cache_data
+def get_eval_data():
+    eval_file = Path("outputs/eval_results.csv")
+    if eval_file.exists():
+        return pd.read_csv(eval_file)
+    return None
+
+
+def clear_cached_data():
+    get_memory_data.clear()
+    get_eval_data.clear()
+
+
 st.title("Ashok-AgentForge")
 st.subheader("Multi-Agent Research, Execution and Review Studio")
 
-app = build_graph()
+app = get_app()
 
 
 def build_fixed_bar_chart(df, category_col, title):
@@ -139,7 +158,9 @@ if st.button("Run Workflow"):
             result = app.invoke({"task": task})
             save_run(result)
 
-            memory_after_save = load_memory()
+            clear_cached_data()
+            memory_after_save = get_memory_data()
+
             if memory_after_save:
                 st.session_state.latest_result = memory_after_save[-1]
             else:
@@ -157,7 +178,7 @@ error_message = st.session_state.latest_error
 if error_message:
     st.error(f"Workflow failed: {error_message}")
 
-memory = load_memory()
+memory = get_memory_data()
 memory_df = pd.DataFrame(memory) if memory else pd.DataFrame()
 
 st.sidebar.header("Run Metrics")
@@ -327,10 +348,9 @@ with tab3:
 with tab4:
     st.markdown("## Evaluation Results")
 
-    eval_file = Path("outputs/eval_results.csv")
+    eval_df = get_eval_data()
 
-    if eval_file.exists():
-        eval_df = pd.read_csv(eval_file)
+    if eval_df is not None:
         st.dataframe(eval_df, use_container_width=True)
 
         csv_data = eval_df.to_csv(index=False).encode("utf-8")
