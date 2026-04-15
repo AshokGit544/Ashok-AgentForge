@@ -4,7 +4,7 @@ import altair as alt
 import json
 from pathlib import Path
 from app.workflows.graph import build_graph
-from app.memory.run_memory import save_run, load_memory
+from app.memory.run_memory import save_run, load_recent_memory
 
 st.set_page_config(
     page_title="Ashok-AgentForge",
@@ -19,8 +19,8 @@ def get_app():
 
 
 @st.cache_data
-def get_memory_data():
-    return load_memory()
+def get_recent_memory_data():
+    return load_recent_memory(limit=20)
 
 
 @st.cache_data
@@ -32,7 +32,7 @@ def get_eval_data():
 
 
 def clear_cached_data():
-    get_memory_data.clear()
+    get_recent_memory_data.clear()
     get_eval_data.clear()
 
 
@@ -159,10 +159,10 @@ if st.button("Run Workflow"):
             save_run(result)
 
             clear_cached_data()
-            memory_after_save = get_memory_data()
+            recent_memory = get_recent_memory_data()
 
-            if memory_after_save:
-                st.session_state.latest_result = memory_after_save[-1]
+            if recent_memory:
+                st.session_state.latest_result = recent_memory[-1]
             else:
                 st.session_state.latest_result = result
 
@@ -178,7 +178,7 @@ error_message = st.session_state.latest_error
 if error_message:
     st.error(f"Workflow failed: {error_message}")
 
-memory = get_memory_data()
+memory = get_recent_memory_data()
 memory_df = pd.DataFrame(memory) if memory else pd.DataFrame()
 
 st.sidebar.header("Run Metrics")
@@ -188,7 +188,7 @@ approved_runs = sum(1 for run in memory if run.get("review_status") == "approved
 needs_improvement_runs = sum(1 for run in memory if run.get("review_status") == "needs_improvement")
 last_task_type = memory[-1].get("task_type") if memory else "N/A"
 
-st.sidebar.write("**Total Runs:**", total_runs)
+st.sidebar.write("**Visible Runs:**", total_runs)
 st.sidebar.write("**Approved Runs:**", approved_runs)
 st.sidebar.write("**Needs Improvement Runs:**", needs_improvement_runs)
 st.sidebar.write("**Last Task Type:**", last_task_type)
@@ -275,26 +275,8 @@ with tab2:
         if selected_run:
             render_run_details(selected_run, "Selected Saved Run")
 
-            selected_run_json = json.dumps(selected_run, indent=2)
-
-            action_col1, action_col2 = st.columns(2)
-
-            with action_col1:
-                if st.button("Load Selected Run as Current Run"):
-                    st.session_state.latest_result = selected_run
-                    st.session_state.latest_error = None
-                    st.success("Selected saved run loaded into Current Run tab.")
-
-            with action_col2:
-                st.download_button(
-                    label="Download Selected Run",
-                    data=selected_run_json,
-                    file_name=f"selected_run_{selected_run.get('run_id', 'unknown')}.json",
-                    mime="application/json"
-                )
-
-        st.markdown("### Latest Filtered Runs")
         latest_runs = filtered_runs[:5]
+        st.markdown("### Latest Filtered Runs")
 
         for idx, run in enumerate(latest_runs, start=1):
             run_title = f"Run {idx}: {run.get('task', 'No task')}"
@@ -322,12 +304,7 @@ with tab3:
                 "Review Status Distribution"
             )
             if review_chart is not None:
-                st.altair_chart(
-                    review_chart,
-                    width=440,
-                    height=340,
-                    theme=None
-                )
+                st.altair_chart(review_chart, width=440, height=340, theme=None)
 
         with chart_col2:
             task_chart = build_fixed_bar_chart(
@@ -336,12 +313,7 @@ with tab3:
                 "Task Type Distribution"
             )
             if task_chart is not None:
-                st.altair_chart(
-                    task_chart,
-                    width=440,
-                    height=340,
-                    theme=None
-                )
+                st.altair_chart(task_chart, width=440, height=340, theme=None)
     else:
         st.info("Run some workflows to generate charts.")
 

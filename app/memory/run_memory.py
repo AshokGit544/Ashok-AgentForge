@@ -14,6 +14,11 @@ def load_memory():
         return json.load(f)
 
 
+def load_recent_memory(limit=20):
+    memory = load_memory()
+    return memory[-limit:]
+
+
 def save_run(record: dict):
     memory = load_memory()
 
